@@ -4,7 +4,7 @@ import { GENERATED_CODE_PATTERN } from './short-code.js';
 const CODE_PATTERN = /^[A-Za-z0-9_-]{3,30}$/;
 
 /** Paths the app uses (or will use) itself. Compared case-insensitively. */
-const RESERVED_ALIASES = new Set(['api', 'health', 'stats', 'admin', 'static', 'assets', 'public', 'index']);
+const RESERVED_ALIASES = new Set(['api', 'health', 'stats', 'admin', 'static', 'assets', 'public', 'index', 'metrics']);
 
 /**
  * Returns an error message if the alias is not allowed, otherwise null.

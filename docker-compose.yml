@@ -2,13 +2,27 @@ services:
   mongo:
     image: mongo:8.2
     ports:
-      - "27017:27017"
+      - "27018:27017"
     volumes:
       - mongo-data:/data/db
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
       interval: 5s
       timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:8.2-alpine
+    # volatile-lru: when memory is full, evict only keys that have a TTL (cache
+    # entries, rate-limit windows). Keys without a TTL, like the click stream
+    # in phase 3, are never evicted. allkeys-lru could silently drop them.
+    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "volatile-lru"]
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
       retries: 10
 
   api:
@@ -23,8 +37,11 @@ services:
       BASE_URL: http://localhost:3000
       MONGO_URI: mongodb://mongo:27017
       MONGO_DB: url_shortener
+      REDIS_URL: redis://redis:6379
     depends_on:
       mongo:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
 volumes:

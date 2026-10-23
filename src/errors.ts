@@ -48,3 +48,9 @@ export class GoneError extends AppError {
     super(410, 'LINK_EXPIRED', message);
   }
 }
+
+export class TooManyRequestsError extends AppError {
+  constructor(message = 'Too many requests, please slow down') {
+    super(429, 'RATE_LIMITED', message);
+  }
+}

@@ -1,6 +1,9 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type { Config } from '../config/env.js';
 import { MAX_URL_LENGTH } from '../domain/url.js';
+import { TooManyRequestsError } from '../errors.js';
 import type { CreateLinkInput, LinkService } from '../services/link.service.js';
+import type { RateLimiter } from '../services/rate-limiter.js';
 
 /*
  * Fastify compiles these JSON schemas once at startup. The body schema
@@ -32,12 +35,37 @@ const shortenSchema = {
   },
 };
 
-export function shortenRoutes(app: FastifyInstance, linkService: LinkService): void {
-  app.post<{ Body: CreateLinkInput }>('/api/shorten', { schema: shortenSchema }, async (request, reply) => {
-    const link = await linkService.createLink(request.body);
-    return reply.status(201).send({
-      ...link,
-      expiresAt: link.expiresAt?.toISOString() ?? null,
-    });
-  });
+export function shortenRoutes(
+  app: FastifyInstance,
+  linkService: LinkService,
+  rateLimiter: RateLimiter,
+  config: Config,
+): void {
+  const windowSeconds = config.SHORTEN_RATE_LIMIT_WINDOW_SECONDS;
+
+  // onRequest runs before body parsing and validation, so even malformed
+  // requests count against the limit, and rejecting them costs almost nothing.
+  async function enforceRateLimit(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const result = await rateLimiter.check([
+      { key: `rl:shorten:ip:${request.ip}`, max: config.SHORTEN_RATE_LIMIT_PER_IP, windowSeconds },
+      { key: 'rl:shorten:global', max: config.SHORTEN_RATE_LIMIT_GLOBAL, windowSeconds },
+    ]);
+    if (!result.allowed) {
+      reply.header('Retry-After', result.retryAfterSeconds);
+      throw new TooManyRequestsError();
+    }
+    reply.header('X-RateLimit-Remaining', result.remaining);
+  }
+
+  app.post<{ Body: CreateLinkInput }>(
+    '/api/shorten',
+    { schema: shortenSchema, onRequest: enforceRateLimit },
+    async (request, reply) => {
+      const link = await linkService.createLink(request.body);
+      return reply.status(201).send({
+        ...link,
+        expiresAt: link.expiresAt?.toISOString() ?? null,
+      });
+    },
+  );
 }

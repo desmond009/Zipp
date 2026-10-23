@@ -5,6 +5,7 @@ import { normalizeUrl } from '../domain/url.js';
 import { ConflictError, ForbiddenError, GoneError, NotFoundError, ValidationError } from '../errors.js';
 import { DuplicateCodeError, type LinkDocument, type LinkRepository } from '../repositories/link.repository.js';
 import type { IdAllocator } from './id-allocator.js';
+import type { CachedLink, LinkCache } from './link-cache.js';
 
 export interface CreateLinkInput {
   url: string;
@@ -28,6 +29,7 @@ export class LinkService {
   constructor(
     private readonly links: LinkRepository,
     private readonly idAllocator: IdAllocator,
+    private readonly cache: LinkCache,
     private readonly baseUrl: string,
   ) {
     this.ownHost = new URL(baseUrl).host;
@@ -68,6 +70,11 @@ export class LinkService {
       throw error;
     }
 
+    // Write-through on create: new links tend to be clicked right away, and
+    // this also replaces any cached "notFound" for this code (e.g. someone
+    // tried /my-blog before the alias existed).
+    await this.cache.set(code, toCacheEntry(link));
+
     return {
       code,
       shortUrl: `${this.baseUrl}/${code}`,
@@ -77,23 +84,32 @@ export class LinkService {
     };
   }
 
-  /** Returns the destination URL for a code, or throws 404 / 410. */
+  /**
+   * Returns the destination URL for a code, or throws 404 / 410.
+   * Cache-aside: try Redis first; on a miss read MongoDB and fill the cache.
+   */
   async resolve(code: string): Promise<string> {
-    // Reject obviously invalid paths without a database query.
+    // Reject obviously invalid paths without touching Redis or MongoDB.
     if (!isPossibleCode(code)) {
       throw new NotFoundError();
     }
 
-    const link = await this.links.findByCode(code);
-    if (!link) {
+    let entry = await this.cache.get(code);
+    if (!entry) {
+      const link = await this.links.findByCode(code);
+      entry = link ? toCacheEntry(link) : { status: 'notFound' };
+      await this.cache.setIfAbsent(code, entry);
+    }
+
+    if (entry.status === 'notFound') {
       throw new NotFoundError();
     }
     // The TTL index deletes expired links only about once a minute, so an
-    // expired link can still be in the database for a short while.
-    if (link.expiresAt && link.expiresAt <= new Date()) {
+    // expired link can still be in the database (or cache) for a short while.
+    if (entry.status === 'expired' || (entry.expiresAt !== null && entry.expiresAt <= Date.now())) {
       throw new GoneError();
     }
-    return link.longUrl;
+    return entry.longUrl;
   }
 
   async deleteLink(code: string, manageToken: string): Promise<void> {
@@ -105,7 +121,16 @@ export class LinkService {
       throw new ForbiddenError('Invalid manage token');
     }
     await this.links.deleteByCode(code);
+    // Overwrite rather than delete the cache entry; see link-cache.ts for why.
+    await this.cache.set(code, { status: 'notFound' });
   }
+}
+
+function toCacheEntry(link: LinkDocument): CachedLink {
+  if (link.expiresAt && link.expiresAt <= new Date()) {
+    return { status: 'expired' };
+  }
+  return { status: 'found', longUrl: link.longUrl, expiresAt: link.expiresAt?.getTime() ?? null };
 }
 
 function parseExpiry(value: string): Date {
