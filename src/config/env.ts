@@ -24,6 +24,14 @@ const envSchema = z.object({
   SHORTEN_RATE_LIMIT_PER_IP: z.coerce.number().int().positive().default(10),
   SHORTEN_RATE_LIMIT_GLOBAL: z.coerce.number().int().positive().default(1000),
 
+  // Accounts
+  SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(7 * 24 * 60 * 60),
+  // Login/register attempts per IP per window: slows down password guessing.
+  AUTH_RATE_LIMIT_PER_IP: z.coerce.number().int().positive().default(10),
+
+  // Built React app (npm run build:web). If missing, the API runs without the frontend.
+  WEB_DIST_DIR: z.string().default('web/dist'),
+
   // Click events. The stream is capped so a long worker outage can't fill Redis;
   // past the cap the oldest unprocessed clicks are dropped.
   CLICK_STREAM_MAX_LENGTH: z.coerce.number().int().positive().default(1_000_000),

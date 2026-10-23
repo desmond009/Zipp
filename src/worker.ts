@@ -4,6 +4,7 @@ import { connectMongo } from './db/mongo.js';
 import { connectRedis } from './db/redis.js';
 import { setupDatabase } from './db/setup.js';
 import { ClickRepository } from './repositories/click.repository.js';
+import { LinkRepository } from './repositories/link.repository.js';
 import { StatsRepository } from './repositories/stats.repository.js';
 import { ClickConsumer } from './workers/click-consumer.js';
 import { ClickEnricher } from './workers/click-enricher.js';
@@ -36,6 +37,7 @@ const consumer = new ClickConsumer(
     redis,
     clicks: new ClickRepository(mongo.db),
     stats: new StatsRepository(mongo.db),
+    links: new LinkRepository(mongo.db),
     enricher: new ClickEnricher(geo, config.IP_HASH_SECRET),
     logger,
   },

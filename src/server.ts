@@ -14,9 +14,10 @@ const mongo = await connectMongo(config.MONGO_URI, config.MONGO_DB);
 await setupDatabase(mongo.db);
 logger.info('Connected to MongoDB and ensured indexes');
 const redis = await connectRedis(config.REDIS_URL, logger, { failFast: true });
+const redisSubscriber = await connectRedis(config.REDIS_URL, logger, { failFast: true });
 logger.info('Connected to Redis');
 
-const app = buildApp({ config, db: mongo.db, redis, logger });
+const app = buildApp({ config, db: mongo.db, redis, redisSubscriber, logger });
 await app.listen({ port: config.PORT, host: config.HOST });
 
 /*
@@ -41,7 +42,7 @@ async function shutdown(signal: string): Promise<void> {
 
   try {
     await app.close();
-    await Promise.all([mongo.client.close(), redis.quit()]);
+    await Promise.all([mongo.client.close(), redis.quit(), redisSubscriber.quit()]);
     logger.info('Shutdown complete');
     process.exit(0);
   } catch (error) {

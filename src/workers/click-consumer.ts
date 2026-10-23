@@ -6,9 +6,12 @@ import {
   CLICK_DEAD_LETTER_KEY,
   CLICK_STREAM_KEY,
   fromStreamFields,
+  liveClickChannel,
+  toLiveClick,
 } from '../domain/click-event.js';
 import { buildDailyIncrements } from '../domain/daily-stats.js';
 import type { ClickDocument, ClickRepository } from '../repositories/click.repository.js';
+import type { LinkRepository } from '../repositories/link.repository.js';
 import type { StatsRepository } from '../repositories/stats.repository.js';
 import type { ClickEnricher } from './click-enricher.js';
 
@@ -25,6 +28,7 @@ export interface ClickConsumerDependencies {
   redis: Redis;
   clicks: ClickRepository;
   stats: StatsRepository;
+  links: LinkRepository;
   enricher: ClickEnricher;
   logger: FastifyBaseLogger;
 }
@@ -152,11 +156,12 @@ export class ClickConsumer {
       }
     }
 
-    // Raw clicks and aggregated counters are written in parallel: they're
-    // independent, and both must succeed before we ack.
+    // Raw clicks, daily counters and per-link totals are written in parallel:
+    // they're independent, and all must succeed before we ack.
     await Promise.all([
       this.deps.clicks.insertMany(clicks),
       this.deps.stats.applyIncrements(buildDailyIncrements(clicks.map((click) => ({ ...click, code: click.meta.code })))),
+      this.deps.links.incrementClickCounts(countByCode(clicks)),
     ]);
 
     if (malformed.length > 0) {
@@ -166,6 +171,26 @@ export class ClickConsumer {
     // Only now is it safe to tell Redis these messages are done.
     await this.deps.redis.xack(CLICK_STREAM_KEY, CLICK_CONSUMER_GROUP, ...entries.map(([id]) => id));
     this.deps.logger.debug({ count: entries.length }, 'Processed click batch');
+
+    await this.publishLive(clicks);
+  }
+
+  /**
+   * Announces processed clicks for anyone watching the live tail. One
+   * pipeline = one round-trip for the whole batch. Best effort: a failure
+   * here only means a live viewer misses a line, so it's logged, not retried.
+   */
+  private async publishLive(clicks: ClickDocument[]): Promise<void> {
+    if (clicks.length === 0) return;
+    const pipeline = this.deps.redis.pipeline();
+    for (const click of clicks) {
+      pipeline.publish(liveClickChannel(click.meta.code), JSON.stringify(toLiveClick(click)));
+    }
+    try {
+      await pipeline.exec();
+    } catch (error) {
+      this.deps.logger.warn({ err: error }, 'Failed to publish live clicks');
+    }
   }
 
   /**
@@ -181,6 +206,14 @@ export class ClickConsumer {
     }
     await pipeline.exec();
   }
+}
+
+function countByCode(clicks: ClickDocument[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const click of clicks) {
+    counts.set(click.meta.code, (counts.get(click.meta.code) ?? 0) + 1);
+  }
+  return counts;
 }
 
 function sleep(ms: number): Promise<void> {

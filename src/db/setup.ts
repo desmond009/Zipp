@@ -15,6 +15,7 @@ export async function setupDatabase(db: Db): Promise<void> {
   const links = db.collection(COLLECTIONS.links);
   const clicks = db.collection(COLLECTIONS.clicks);
   const dailyStats = db.collection(COLLECTIONS.dailyStats);
+  const users = db.collection(COLLECTIONS.users);
 
   await Promise.all([
     // Every redirect looks up by code; unique also guards against duplicate codes.
@@ -22,6 +23,17 @@ export async function setupDatabase(db: Db): Promise<void> {
     // TTL index: Mongo's background job deletes a link once expiresAt has passed.
     // Documents without expiresAt are never deleted.
     links.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0, name: 'expiresAt_ttl' }),
+    // "My links" sorted by newest or by clicks. Partial: guest links (no owner)
+    // never appear in these queries, so they don't take up space in the index.
+    links.createIndex(
+      { ownerId: 1, createdAt: -1 },
+      { name: 'owner_newest', partialFilterExpression: { ownerId: { $exists: true } } },
+    ),
+    links.createIndex(
+      { ownerId: 1, clickCount: -1 },
+      { name: 'owner_clicks', partialFilterExpression: { ownerId: { $exists: true } } },
+    ),
+    users.createIndex({ email: 1 }, { unique: true, name: 'email_unique' }),
     // "Recent clicks for this link" queries.
     clicks.createIndex({ 'meta.code': 1, ts: -1 }, { name: 'code_ts' }),
     // One stats document per link per day; the worker upserts into it.

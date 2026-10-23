@@ -3,4 +3,5 @@ export const COLLECTIONS = {
   counters: 'counters',
   clicks: 'clicks',
   dailyStats: 'daily_stats',
+  users: 'users',
 } as const;

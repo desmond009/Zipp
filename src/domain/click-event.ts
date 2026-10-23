@@ -51,3 +51,29 @@ export function fromStreamFields(fields: string[]): ClickEvent | null {
     referrer: map.get('ref') ?? '',
   };
 }
+
+/** What the live tail shows per click: the enriched fields, never the IP hash. */
+export interface LiveClick {
+  ts: string;
+  country: string;
+  device: string;
+  browser: string;
+  os: string;
+  referrer: string;
+}
+
+export function toLiveClick(click: { ts: Date } & Omit<LiveClick, 'ts'>): LiveClick {
+  return {
+    ts: click.ts.toISOString(),
+    country: click.country,
+    device: click.device,
+    browser: click.browser,
+    os: click.os,
+    referrer: click.referrer,
+  };
+}
+
+/** Redis Pub/Sub channel the worker publishes each processed click to. One per link. */
+export function liveClickChannel(code: string): string {
+  return `clicks:live:${code}`;
+}

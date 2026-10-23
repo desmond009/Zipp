@@ -53,6 +53,17 @@ export class StatsRepository {
     );
   }
 
+  /** Total clicks in [from, to): used to compare with the previous period. */
+  async totalClicks(code: string, from: Date, to: Date): Promise<number> {
+    const [result] = await this.collection
+      .aggregate<{ total: number }>([
+        { $match: { code, day: { $gte: from, $lt: to } } },
+        { $group: { _id: null, total: { $sum: '$total' } } },
+      ])
+      .toArray();
+    return result?.total ?? 0;
+  }
+
   /**
    * Builds the dashboard data for one link since `from` in a single query.
    * $facet runs several sub-pipelines over the same matched documents:

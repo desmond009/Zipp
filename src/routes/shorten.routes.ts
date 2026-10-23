@@ -1,7 +1,7 @@
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import type { Config } from '../config/env.js';
 import { MAX_URL_LENGTH } from '../domain/url.js';
-import { TooManyRequestsError } from '../errors.js';
+import { rateLimitHook } from '../plugins/rate-limit.js';
 import type { CreateLinkInput, LinkService } from '../services/link.service.js';
 import type { RateLimiter } from '../services/rate-limiter.js';
 
@@ -42,26 +42,17 @@ export function shortenRoutes(
   config: Config,
 ): void {
   const windowSeconds = config.SHORTEN_RATE_LIMIT_WINDOW_SECONDS;
-
-  // onRequest runs before body parsing and validation, so even malformed
-  // requests count against the limit, and rejecting them costs almost nothing.
-  async function enforceRateLimit(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const result = await rateLimiter.check([
-      { key: `rl:shorten:ip:${request.ip}`, max: config.SHORTEN_RATE_LIMIT_PER_IP, windowSeconds },
-      { key: 'rl:shorten:global', max: config.SHORTEN_RATE_LIMIT_GLOBAL, windowSeconds },
-    ]);
-    if (!result.allowed) {
-      reply.header('Retry-After', result.retryAfterSeconds);
-      throw new TooManyRequestsError();
-    }
-    reply.header('X-RateLimit-Remaining', result.remaining);
-  }
+  const limitShorten = rateLimitHook(rateLimiter, (request) => [
+    { key: `rl:shorten:ip:${request.ip}`, max: config.SHORTEN_RATE_LIMIT_PER_IP, windowSeconds },
+    { key: 'rl:shorten:global', max: config.SHORTEN_RATE_LIMIT_GLOBAL, windowSeconds },
+  ]);
 
   app.post<{ Body: CreateLinkInput }>(
     '/api/shorten',
-    { schema: shortenSchema, onRequest: enforceRateLimit },
+    { schema: shortenSchema, onRequest: limitShorten },
     async (request, reply) => {
-      const link = await linkService.createLink(request.body);
+      // Logged in: the link is owned and appears under "my links". Guest: no owner.
+      const link = await linkService.createLink(request.body, request.user);
       return reply.status(201).send({
         ...link,
         expiresAt: link.expiresAt?.toISOString() ?? null,

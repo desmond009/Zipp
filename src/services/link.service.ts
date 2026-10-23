@@ -3,9 +3,16 @@ import { generateManageToken, hashManageToken, verifyManageToken } from '../doma
 import { idToCode } from '../domain/short-code.js';
 import { normalizeUrl } from '../domain/url.js';
 import { ConflictError, ForbiddenError, GoneError, NotFoundError, ValidationError } from '../errors.js';
-import { DuplicateCodeError, type LinkDocument, type LinkRepository } from '../repositories/link.repository.js';
+import { ObjectId } from 'mongodb';
+import {
+  DuplicateCodeError,
+  type LinkDocument,
+  type LinkRepository,
+  type OwnerLinksQuery,
+} from '../repositories/link.repository.js';
 import type { IdAllocator } from './id-allocator.js';
 import type { CachedLink, LinkCache } from './link-cache.js';
+import type { AuthUser } from './session-store.js';
 
 export interface CreateLinkInput {
   url: string;
@@ -23,6 +30,23 @@ export interface CreatedLink {
   manageToken: string;
 }
 
+/** A link as the API returns it (never includes the manage token hash or owner ID). */
+export interface LinkView {
+  code: string;
+  shortUrl: string;
+  longUrl: string;
+  createdAt: string;
+  expiresAt: string | null;
+  status: 'active' | 'expired';
+  clickCount: number;
+}
+
+/** Who is trying to delete a link: a logged-in owner, or a guest holding the manage token. */
+export interface DeleteCredentials {
+  user: AuthUser | null;
+  manageToken: string | null;
+}
+
 export class LinkService {
   private readonly ownHost: string;
 
@@ -35,7 +59,8 @@ export class LinkService {
     this.ownHost = new URL(baseUrl).host;
   }
 
-  async createLink(input: CreateLinkInput): Promise<CreatedLink> {
+  /** `owner` is null for guests; their links have no owner and public stats. */
+  async createLink(input: CreateLinkInput, owner: AuthUser | null): Promise<CreatedLink> {
     const longUrl = normalizeUrl(input.url, this.ownHost);
     const expiresAt = input.expiresAt ? parseExpiry(input.expiresAt) : undefined;
 
@@ -57,6 +82,7 @@ export class LinkService {
       manageTokenHash: hashManageToken(manageToken),
       // Leave the field out entirely when there's no expiry, so the TTL index ignores it.
       ...(expiresAt && { expiresAt }),
+      ...(owner && { ownerId: new ObjectId(owner.id) }),
     };
 
     try {
@@ -112,18 +138,69 @@ export class LinkService {
     return entry.longUrl;
   }
 
-  async deleteLink(code: string, manageToken: string): Promise<void> {
-    const link = isPossibleCode(code) ? await this.links.findByCode(code) : null;
-    if (!link) {
-      throw new NotFoundError();
-    }
-    if (!verifyManageToken(manageToken, link.manageTokenHash)) {
-      throw new ForbiddenError('Invalid manage token');
+  async deleteLink(code: string, credentials: DeleteCredentials): Promise<void> {
+    const link = await this.findOrThrow(code);
+    const isOwner = credentials.user !== null && isOwnedBy(link, credentials.user);
+    const hasToken =
+      credentials.manageToken !== null && verifyManageToken(credentials.manageToken, link.manageTokenHash);
+    if (!isOwner && !hasToken) {
+      throw new ForbiddenError('You are not allowed to delete this link');
     }
     await this.links.deleteByCode(code);
     // Overwrite rather than delete the cache entry; see link-cache.ts for why.
     await this.cache.set(code, { status: 'notFound' });
   }
+
+  /**
+   * Returns the link if `viewer` may see its stats: anyone for guest links,
+   * only the owner for owned ones.
+   */
+  async getViewableLink(code: string, viewer: AuthUser | null): Promise<LinkDocument> {
+    const link = await this.findOrThrow(code);
+    if (link.ownerId && !(viewer && isOwnedBy(link, viewer))) {
+      throw new ForbiddenError('Stats for this link are private');
+    }
+    return link;
+  }
+
+  async listForOwner(owner: AuthUser, query: OwnerLinksQuery) {
+    const ownerId = new ObjectId(owner.id);
+    const [{ links, total }, summary] = await Promise.all([
+      this.links.findByOwner(ownerId, query),
+      this.links.summarizeOwner(ownerId),
+    ]);
+    return {
+      links: links.map((link) => this.toView(link)),
+      page: query.page,
+      pageSize: query.pageSize,
+      total,
+      ...summary,
+    };
+  }
+
+  toView(link: LinkDocument): LinkView {
+    return {
+      code: link.code,
+      shortUrl: `${this.baseUrl}/${link.code}`,
+      longUrl: link.longUrl,
+      createdAt: link.createdAt.toISOString(),
+      expiresAt: link.expiresAt?.toISOString() ?? null,
+      status: link.expiresAt && link.expiresAt <= new Date() ? 'expired' : 'active',
+      clickCount: link.clickCount ?? 0,
+    };
+  }
+
+  private async findOrThrow(code: string): Promise<LinkDocument> {
+    const link = isPossibleCode(code) ? await this.links.findByCode(code) : null;
+    if (!link) {
+      throw new NotFoundError();
+    }
+    return link;
+  }
+}
+
+function isOwnedBy(link: LinkDocument, user: AuthUser): boolean {
+  return link.ownerId?.toHexString() === user.id;
 }
 
 function toCacheEntry(link: LinkDocument): CachedLink {
