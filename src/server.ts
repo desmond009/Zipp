@@ -13,7 +13,7 @@ const logger = createLogger(config);
 const mongo = await connectMongo(config.MONGO_URI, config.MONGO_DB);
 await setupDatabase(mongo.db);
 logger.info('Connected to MongoDB and ensured indexes');
-const redis = await connectRedis(config.REDIS_URL, logger);
+const redis = await connectRedis(config.REDIS_URL, logger, { failFast: true });
 logger.info('Connected to Redis');
 
 const app = buildApp({ config, db: mongo.db, redis, logger });

@@ -8,15 +8,19 @@
   },
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=.env src/server.ts",
+    "dev:worker": "tsx watch --env-file-if-exists=.env src/worker.ts",
     "build": "tsc",
     "start": "node dist/server.js",
+    "start:worker": "node dist/worker.js",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@maxmind/geoip2-node": "^7.1.0",
     "fastify": "^5.12.7",
     "ioredis": "^6.0.0",
     "mongodb": "^7.7.0",
     "pino": "^10.4.0",
+    "ua-parser-js": "^1.0.41",
     "zod": "^4.6.7"
   },
   "devDependencies": {

@@ -14,11 +14,24 @@ services:
   redis:
     image: redis:8.2-alpine
     # volatile-lru: when memory is full, evict only keys that have a TTL (cache
-    # entries, rate-limit windows). Keys without a TTL, like the click stream
-    # in phase 3, are never evicted. allkeys-lru could silently drop them.
-    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "volatile-lru"]
+    # entries, rate-limit windows). Keys without a TTL, like the click stream,
+    # are never evicted. allkeys-lru could silently drop unprocessed clicks.
+    # appendonly: log every write to disk (fsync once a second), so queued
+    # click events survive a Redis restart; at most ~1s of clicks can be lost.
+    command:
+      - redis-server
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - volatile-lru
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
     ports:
       - "6380:6379"
+    volumes:
+      - redis-data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -44,5 +57,28 @@ services:
       redis:
         condition: service_healthy
 
+  worker:
+    build: .
+    # Same image as the API, different entrypoint.
+    command: ["node", "dist/worker.js"]
+    init: true
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: info
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_DB: url_shortener
+      REDIS_URL: redis://redis:6379
+      IP_HASH_SECRET: ${IP_HASH_SECRET:-dev-only-secret-change-me}
+      # To resolve countries, put GeoLite2-Country.mmdb in ./geoip and uncomment:
+      # GEOIP_DB_PATH: /geoip/GeoLite2-Country.mmdb
+    # volumes:
+    #   - ./geoip:/geoip:ro
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
 volumes:
   mongo-data:
+  redis-data:

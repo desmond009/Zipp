@@ -23,6 +23,18 @@ const envSchema = z.object({
   SHORTEN_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
   SHORTEN_RATE_LIMIT_PER_IP: z.coerce.number().int().positive().default(10),
   SHORTEN_RATE_LIMIT_GLOBAL: z.coerce.number().int().positive().default(1000),
+
+  // Click events. The stream is capped so a long worker outage can't fill Redis;
+  // past the cap the oldest unprocessed clicks are dropped.
+  CLICK_STREAM_MAX_LENGTH: z.coerce.number().int().positive().default(1_000_000),
+  WORKER_BATCH_SIZE: z.coerce.number().int().positive().default(500),
+  WORKER_BLOCK_MS: z.coerce.number().int().positive().default(2000),
+  // A message unacknowledged this long is assumed abandoned by a crashed worker.
+  WORKER_CLAIM_IDLE_MS: z.coerce.number().int().positive().default(60_000),
+  // Optional path to GeoLite2-Country.mmdb. Without it, every country is "unknown".
+  GEOIP_DB_PATH: z.string().optional(),
+  // Secret mixed into IP hashes; without it, the 4 billion IPv4 hashes could be brute-forced.
+  IP_HASH_SECRET: z.string().min(16).default('dev-only-secret-change-me'),
 });
 
 export type Config = z.infer<typeof envSchema>;
