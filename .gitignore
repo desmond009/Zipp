@@ -5,3 +5,6 @@ coverage/
 *.log
 geoip/
 web/dist/
+
+# Personal interview notes (not part of the project)
+interview-prep/
