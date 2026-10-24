@@ -1,0 +1,7 @@
+{
+  "cache_hits": 59832,
+  "cache_misses": 100,
+  "cache_hit_rate": 0.9983314423012748,
+  "stream_lag_at_end": 0,
+  "worker_drain_seconds": 0
+}

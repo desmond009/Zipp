@@ -1,0 +1,17 @@
+# Overrides for load testing, layered on top of docker-compose.yml:
+#   docker compose -f docker-compose.yml -f load-tests/compose.loadtest.yml up -d
+services:
+  api:
+    environment:
+      # Per-request info logs cost real CPU at thousands of req/s; production
+      # would sample them. Warnings and errors are still logged.
+      LOG_LEVEL: warn
+      # Toggled by run.sh to compare with and without the Redis cache.
+      CACHE_ENABLED: ${CACHE_ENABLED:-true}
+      # The shorten test measures the endpoint, not the rate limiter: k6 sends
+      # everything from one IP, which would otherwise get 429 after 10 requests.
+      SHORTEN_RATE_LIMIT_PER_IP: "100000000"
+      SHORTEN_RATE_LIMIT_GLOBAL: "100000000"
+  worker:
+    environment:
+      LOG_LEVEL: warn

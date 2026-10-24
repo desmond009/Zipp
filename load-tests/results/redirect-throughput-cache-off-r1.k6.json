@@ -1,0 +1,14 @@
+{
+  "name": "redirect-throughput-cache-off-r1",
+  "scenario": "throughput",
+  "cache": "off",
+  "target_rps": null,
+  "requests": 218996,
+  "rps": 7298,
+  "p50_ms": 7.77,
+  "p95_ms": 14.78,
+  "p99_ms": 24.15,
+  "max_ms": 346.99,
+  "failed_rate": 0,
+  "dropped_iterations": 0
+}
