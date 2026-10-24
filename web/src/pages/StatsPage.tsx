@@ -23,7 +23,7 @@ function PickLink() {
     if (code.trim()) navigate(`/stats/${encodeURIComponent(code.trim())}`);
   };
   return (
-    <Panel title={<Command>clickpulse stats &lt;code&gt;</Command>}>
+    <Panel title={<Command>zipp stats &lt;code&gt;</Command>}>
       <form className="field-row" onSubmit={onSubmit}>
         <input
           className="input grow"
@@ -69,7 +69,7 @@ function LinkStatsView({ code }: { code: string }) {
     return (
       <>
         {back}
-        <Panel title={<Command>clickpulse stats {code}</Command>}>
+        <Panel title={<Command>zipp stats {code}</Command>}>
           <p className="error">✗ {message}</p>
           {error.status === 403 && !user && (
             <p className="muted">
@@ -95,7 +95,7 @@ function LinkStatsView({ code }: { code: string }) {
         className="stats-heading"
         title={
           <Command>
-            clickpulse stats {code} --range=<span className="flag">{days}d</span>
+            zipp stats {code} --range=<span className="flag">{days}d</span>
           </Command>
         }
         actions={
@@ -203,7 +203,7 @@ function downloadCsv(stats: LinkStats): void {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
-  anchor.download = `clickpulse-${stats.link.code}-${stats.from}-to-${stats.to}.csv`;
+  anchor.download = `zipp-${stats.link.code}-${stats.from}-to-${stats.to}.csv`;
   anchor.click();
   URL.revokeObjectURL(url);
 }

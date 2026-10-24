@@ -73,4 +73,4 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
-      - run: docker build --tag clickpulse:ci .
+      - run: docker build --tag zipp:ci .

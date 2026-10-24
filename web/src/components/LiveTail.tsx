@@ -37,7 +37,7 @@ export function LiveTail({ code }: { code: string }) {
     <section className="panel tail">
       <div className="panel-heading">
         <h2 className="panel-title">
-          <span className="accent">$</span> clickpulse tail {code}
+          <span className="accent">$</span> zipp tail {code}
         </h2>
         <span className={status === 'streaming' ? 'accent small' : 'flag small'}>
           {status === 'streaming' ? '● streaming' : `○ ${status}`}

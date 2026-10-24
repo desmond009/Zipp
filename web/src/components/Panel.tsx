@@ -25,7 +25,7 @@ export function Panel({
   );
 }
 
-/** "$ clickpulse ls" with the green prompt. */
+/** "$ zipp ls" with the green prompt. */
 export function Command({ children }: { children: ReactNode }) {
   return (
     <>

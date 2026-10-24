@@ -39,7 +39,7 @@ export function LoginPage() {
 
   return (
     <section className="narrow">
-      <Panel title={<Command>clickpulse {mode}</Command>}>
+      <Panel title={<Command>zipp {mode}</Command>}>
         <form className="stack" onSubmit={onSubmit}>
           <label className="stack-field">
             <span className="flag">--email</span>
@@ -75,7 +75,7 @@ export function LoginPage() {
         <p className="muted small">
           {mode === 'login' ? 'no account? ' : 'have an account? '}
           <button className="link-action accent" onClick={() => setMode(mode === 'login' ? 'register' : 'login')}>
-            $ clickpulse {mode === 'login' ? 'register' : 'login'}
+            $ zipp {mode === 'login' ? 'register' : 'login'}
           </button>
         </p>
       </Panel>
@@ -89,7 +89,7 @@ export function LoginRequired({ command }: { command: string }) {
     <Panel title={<Command>{command}</Command>}>
       <p className="error">✗ error: not logged in</p>
       <p className="muted">
-        run <a href="#/login">$ clickpulse login</a> to see your links. Guests can still shorten links on [1].
+        run <a href="#/login">$ zipp login</a> to see your links. Guests can still shorten links on [1].
       </p>
     </Panel>
   );

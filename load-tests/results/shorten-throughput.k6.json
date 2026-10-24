@@ -1,0 +1,13 @@
+{
+  "name": "shorten-throughput",
+  "scenario": "throughput",
+  "cache": "on",
+  "requests": 243738,
+  "rps": 8123,
+  "p50_ms": 3.35,
+  "p95_ms": 6.98,
+  "p99_ms": 10.7,
+  "max_ms": 132,
+  "failed_rate": 0,
+  "dropped_iterations": 0
+}

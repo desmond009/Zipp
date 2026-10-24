@@ -49,7 +49,7 @@ export function ShortenPage() {
     <>
       <section className="hero">
         <p className="comment">// url shortener + real-time click analytics</p>
-        <h1 className="hero-title">clickpulse</h1>
+        <h1 className="hero-title">zipp</h1>
         <p className="hero-text">
           Shorten links from the browser, the CLI or the API. Every click is logged, parsed and streamed to your
           stats, without slowing the redirect.
@@ -58,14 +58,14 @@ export function ShortenPage() {
 
       <section className="terminal">
         <div className="terminal-bar">
-          <span>zsh — clickpulse shorten</span>
+          <span>zsh — zipp shorten</span>
           <span>session: {user ? user.email : 'guest'}</span>
         </div>
 
         <form className="terminal-body" onSubmit={onSubmit}>
           <label className="field-row">
             <span className="prompt">
-              <Command>clickpulse shorten</Command>
+              <Command>zipp shorten</Command>
             </span>
             <input
               className="input grow"
@@ -115,7 +115,7 @@ export function ShortenPage() {
       </section>
 
       <div className="grid-2">
-        <Panel title={<Command>clickpulse --help</Command>}>
+        <Panel title={<Command>zipp --help</Command>}>
           <dl className="help">
             <dt>shorten</dt>
             <dd>create a short link (alias, expiry)</dd>

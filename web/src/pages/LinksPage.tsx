@@ -17,7 +17,7 @@ const SORTS: { value: LinkSort; label: string }[] = [
 export function LinksPage() {
   const { user } = useAuth();
   if (user === undefined) return <p className="muted">loading…</p>;
-  if (!user) return <LoginRequired command="clickpulse ls" />;
+  if (!user) return <LoginRequired command="zipp ls" />;
   return <LinksTable />;
 }
 
@@ -70,7 +70,7 @@ function LinksTable() {
         <div>
           <h1 className="page-title">
             <Command>
-              clickpulse ls --sort=<span className="flag">{SORTS.find((s) => s.value === sort)?.label}</span>
+              zipp ls --sort=<span className="flag">{SORTS.find((s) => s.value === sort)?.label}</span>
             </Command>
           </h1>
           {data && (

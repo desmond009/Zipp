@@ -17,7 +17,7 @@ export function ApiPage() {
   return (
     <>
       <h1 className="page-title">
-        <Command>clickpulse api --help</Command>
+        <Command>zipp api --help</Command>
       </h1>
       <p className="muted">
         JSON in, JSON out. Errors always look like <code className="text">{'{ "error": { "code", "message" } }'}</code>.

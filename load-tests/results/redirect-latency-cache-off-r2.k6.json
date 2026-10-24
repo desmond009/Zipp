@@ -1,0 +1,14 @@
+{
+  "name": "redirect-latency-cache-off-r2",
+  "scenario": "latency",
+  "cache": "off",
+  "target_rps": 2000,
+  "requests": 56894,
+  "rps": 1896,
+  "p50_ms": 0.43,
+  "p95_ms": 288.97,
+  "p99_ms": 977.3,
+  "max_ms": 2188.22,
+  "failed_rate": 0,
+  "dropped_iterations": 3109
+}

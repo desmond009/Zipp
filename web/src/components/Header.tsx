@@ -21,7 +21,7 @@ export function Header({ route }: { route: Route }) {
     <header className="header">
       <div className="container header-inner">
         <a className="brand" href="#/">
-          <span className="accent">~/</span>clickpulse
+          <span className="accent">~/</span>zipp
         </a>
         <nav className="nav">
           {NAV.map((item) => (

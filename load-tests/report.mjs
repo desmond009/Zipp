@@ -39,10 +39,13 @@ if (command === 'record') {
     groups.set(test, [...(groups.get(test) ?? []), { ...result, ...extra }]);
   }
 
+  const range = (values) =>
+    `${Math.min(...values).toLocaleString('en-US')}–${Math.max(...values).toLocaleString('en-US')}`;
+
   const order = (test) =>
     ['coldstart-cache-on', 'throughput-cache-on', 'latency-cache-on', 'coldstart-cache-off', 'throughput-cache-off', 'latency-cache-off', 'shorten'].findIndex((key) => test.includes(key));
 
-  const header = ['Test', 'Load', 'Runs', 'Throughput (req/s)', 'p50 (ms)', 'p95 (ms)', 'p99 (ms)', 'p99 range (ms)', 'Cache hit rate', 'Errors', 'Dropped'];
+  const header = ['Test', 'Load', 'Runs', 'Throughput (req/s)', 'Throughput range', 'p50 (ms)', 'p95 (ms)', 'p99 (ms)', 'p99 range (ms)', 'Cache hit rate', 'Errors', 'Dropped'];
   console.log(`| ${header.join(' | ')} |`);
   console.log(`|${header.map(() => '---').join('|')}|`);
 
@@ -58,6 +61,7 @@ if (command === 'record') {
       load,
       runs.length,
       median.rps.toLocaleString('en-US'),
+      runs.length > 1 ? range(runs.map((run) => run.rps)) : '—',
       median.p50_ms,
       median.p95_ms,
       median.p99_ms,
