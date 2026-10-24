@@ -53,7 +53,12 @@ export type Config = z.infer<typeof envSchema>;
  * message instead of failing later on the first request.
  */
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
-  const result = envSchema.safeParse(env);
+  const result = envSchema.safeParse({
+    ...env,
+    // On Render, the service's public URL is only known after it's created;
+    // Render exposes it as RENDER_EXTERNAL_URL, so use it unless BASE_URL is set.
+    BASE_URL: env.BASE_URL || env.RENDER_EXTERNAL_URL,
+  });
   if (!result.success) {
     throw new Error(`Invalid environment configuration:\n${z.prettifyError(result.error)}`);
   }

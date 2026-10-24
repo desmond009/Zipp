@@ -14,6 +14,7 @@
     "build:web": "vite build web",
     "start": "node dist/server.js",
     "start:worker": "node dist/worker.js",
+    "start:all": "node dist/start-all.js",
     "typecheck": "tsc --noEmit",
     "typecheck:web": "tsc -p web",
     "lint": "eslint .",

@@ -30,6 +30,7 @@ A URL shortener with real-time click analytics, built to explore system design: 
 - [Design decisions](#design-decisions)
 - [Load testing](#load-testing)
 - [Running it locally](#running-it-locally)
+- [Deploying](#deploying)
 - [Testing and CI](#testing-and-ci)
 - [API](#api)
 - [Project structure](#project-structure)
@@ -42,7 +43,7 @@ A URL shortener with real-time click analytics, built to explore system design: 
 - **Click analytics:** every redirect is queued on a Redis Stream; a separate worker parses the user agent, resolves the country (GeoLite2), and writes raw clicks to a time-series collection plus pre-aggregated daily counters.
 - **Dashboard:** clicks per day, countries, devices, browsers, OS, referrers, unique visitors, change vs the previous period, CSV export, QR codes, and a **live tail** of clicks over Server-Sent Events.
 - **Accounts:** email + password, Redis-backed sessions. Links created while logged in are private to their owner; guest links get a one-time manage token for deletion.
-- **Production basics:** rate limiting, input validation, structured logs, central error handling, health checks, graceful shutdown, 138 tests, CI, one-command Docker setup.
+- **Production basics:** rate limiting, input validation, structured logs, central error handling, health checks, graceful shutdown, 143 tests, CI, one-command Docker setup.
 
 ## Architecture
 
@@ -287,6 +288,10 @@ Docker publishes MongoDB on **27018** and Redis on **6380** (not the default por
 | `WORKER_BATCH_SIZE` | `500` | Click events per worker batch |
 | `IP_HASH_SECRET` | dev value | Secret for IP hashing. **Change it in production.** |
 
+## Deploying
+
+[`docs/DEPLOY.md`](docs/DEPLOY.md) walks through a free deployment: Render for the app, MongoDB Atlas, and Redis Cloud, configured by [`render.yaml`](render.yaml). Render's free tier allows only one service, so there the API and worker run as two processes in one container ([`src/start-all.ts`](src/start-all.ts)). If either crashes, both stop, so the platform restarts the container cleanly.
+
 ## Testing and CI
 
 ```bash
@@ -297,7 +302,7 @@ npm run lint
 npm run typecheck && npm run typecheck:web && npm run typecheck:test
 ```
 
-- **95 unit tests** cover the pure logic and the services with in-memory fakes: Base62, code scrambling (including the coprimality property), alias rules, URL normalization, password and token hashing, daily-stats folding, click parsing, the ID allocator under concurrency, and `LinkService`'s caching and ownership rules.
+- **100 unit tests** cover config loading, the pure logic and the services with in-memory fakes: Base62, code scrambling (including the coprimality property), alias rules, URL normalization, password and token hashing, daily-stats folding, click parsing, the ID allocator under concurrency, and `LinkService`'s caching and ownership rules.
 - **43 integration tests** run the real app (`buildApp()` + `app.inject()`) against a real MongoDB 8.2 (`mongodb-memory-server`) and Redis. They cover redirects, expiry, validation, caching, rate limits, sessions, ownership, the worker end to end, the dead-letter stream, and the SSE stream over a real HTTP connection.
 - **Mutation checks:** tests were checked by deliberately breaking the code (an even multiplier, `SET` instead of `SET NX`) and confirming they fail.
 - **CI** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs lint, the three typechecks, both test suites (with a Redis service container and a cached MongoDB binary) and both builds, and checks that the Docker image builds.

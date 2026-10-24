@@ -1,0 +1,36 @@
+# Render Blueprint: deploys Zipp on Render's free tier.
+#
+# The free tier only allows web services (no background workers), so one
+# service runs both the API and the analytics worker (src/start-all.ts).
+# MongoDB and Redis are external free tiers: MongoDB Atlas and Redis Cloud.
+# Step-by-step guide: docs/DEPLOY.md
+services:
+  - type: web
+    name: zipp
+    runtime: docker
+    plan: free
+    dockerCommand: node dist/start-all.js
+    healthCheckPath: /health
+    # Deploy only after GitHub Actions passes on the pushed commit.
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000" # Render's default port for web services
+      # BASE_URL is not set: the app falls back to RENDER_EXTERNAL_URL
+      # (https://<service>.onrender.com). Set it if you add a custom domain.
+      - key: TRUST_PROXY
+        value: "true" # behind Render's proxy; needed for per-IP rate limits
+      - key: MONGO_URI
+        sync: false # MongoDB Atlas connection string, entered when creating the Blueprint
+      - key: MONGO_DB
+        value: zipp
+      - key: REDIS_URL
+        sync: false # Redis Cloud connection string, entered when creating the Blueprint
+      - key: IP_HASH_SECRET
+        generateValue: true # random 256-bit secret, generated once by Render
+      - key: CLICK_STREAM_MAX_LENGTH
+        value: "50000" # the free Redis Cloud database is 30 MB
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=192 # two Node processes share the 512 MB free instance
