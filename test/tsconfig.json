@@ -1,0 +1,10 @@
+{
+  // Type-checks the tests together with the source they import. Vitest itself
+  // only strips types, so without this a type error in a test would go unnoticed.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "noEmit": true
+  },
+  "include": [".", "../src"]
+}
